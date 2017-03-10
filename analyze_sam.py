@@ -22,6 +22,7 @@ def main():
     args = parser.parse_args()
  
     ref_dict = {} # capture all reference sequences
+    ref_order = [] # establish an order for the final list based on reference order
 
     input = pysam.AlignmentFile(args.sam,'r')
 
@@ -36,6 +37,7 @@ def main():
                 elements = line.split('\t')
                 header = elements[1].split(':')[1]
                 ref_dict[header] = []
+                ref_order.append(header)
 
     max_mm = 0  # maximum number of mismatches allowed for an alignment
     if args.mismatch: # user specificying threshold
@@ -58,7 +60,8 @@ def main():
     # First iterate over the pairs to get rid of any that exceed the 
     # specified mismatch value. 
     valid_pair_dict = defaultdict(list) # new list with excessive mismatches removed
-    valid_pair_keys = defaultdict(set) # use this to isolate best laignment per reference
+    valid_pair_keys = defaultdict(set) # use this to isolate best alignment per reference
+    primer_order = set()
     for reference in ref_dict:
         for f,r in read_pairs(ref_dict[reference]):
 
@@ -67,8 +70,62 @@ def main():
             elif int(r.split('::')[1]) > max_mm:
                 continue
             else:
-                valid_pair_dict[reference].append("{0}\t{1}".format(f,r))
-                valid_pair_keys[reference].add(f[:-1]) # grab the primer
+                
+                # If this is the first of this primer for this reference, arbitrarily
+                # consider it to be the best for now. 
+                if f.split('::')[0] not in valid_pair_keys:
+                    valid_pair_keys[reference].add(f.split('::')[0]) # grab the primer
+                    valid_pair_dict[reference].append("{0}\t{1}".format(f,r))
+                    primer_order.add(f.split('::')[0])
+                    primer_order.add(r.split('::')[0])
+
+                # If a primer pair already exists, see if this set has a lower
+                # total mismatch amount and perhaps is a better representation
+                # of the alignment. 
+                else:
+                    new_mm = (int(f.split('::')[1])+int(r.split('::')[1]))
+
+                    copy_vp_dict = valid_pair_dict # need a copy so we can modify original
+
+                    for pair in copy_vp_dict[reference]:
+                        if pair.startswith(f[:-1]): # found the pair to compare to
+                            fwd = pair.split('\t')[0]
+                            rev = pair.split('\t')[1] 
+                            established_mm = (int(fwd.split('::')[1])+int(rev.split('::')[1]))
+
+                            # If we've found a pair with less total mismatches, make
+                            # these the representative.
+                            if new_mm < established_mm:
+                                idx = copy_vp_dict[reference].index(pair)
+                                valid_pair_dict[reference].pop(idx)
+                                valid_pair_dict[reference].append("{0}\t{1}".format(f,r))
+
+    primer_idxs = sorted(primer_order)
+    final_dict = defaultdict(list)
+    for reference in ref_order: # we want all references even those that did not align
+        # initialize however many slots there are for the number of different primers
+        final_dict[reference] = ['-1']*(len(primer_idxs)) 
+        
+        # Grab all relevant pair mismatch values for this reference
+        for pairs in valid_pair_dict[reference]:
+
+            split_pairs = pairs.split('\t')
+            f_ref = split_pairs[0].split('::')[0]
+            f_mm = split_pairs[0].split('::')[1]
+            r_ref = split_pairs[1].split('::')[0]
+            r_mm = split_pairs[1].split('::')[1]
+            f_idx = primer_idxs.index(f_ref)
+            r_idx = primer_idxs.index(r_ref)
+
+            final_dict[reference][f_idx] = str(f_mm)
+            final_dict[reference][r_idx] = str(r_mm)
+
+    with open(args.output_file,'w') as out:
+        out.write("\t{0}\n".format(("\t").join(primer_idxs))) # header is primer IDs
+
+        # subsequent lines will be the reference and all the MM values for those primers
+        for reference in ref_order:
+            out.write("{0}\t{1}\n".format(reference,("\t".join(final_dict[reference]))))
 
 
 def read_pairs(iterable):
