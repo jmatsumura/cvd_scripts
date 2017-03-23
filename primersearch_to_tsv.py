@@ -29,8 +29,6 @@ def main():
     parser.add_argument('-output_file', type=str, required=True, help='Location/name of the TSV converted file.')
     args = parser.parse_args()
 
-    regex_for_fr_s = r'strand\sat\s(\[?\d+\]?)\swith\s(\d+)' # capture position and mismatches
-
     # Assign variables for the columns noted in the description above
     pn,sid,al = ("" for i in range(3))
     fm,rm,fp,rp = (0 for i in range(4))
@@ -49,15 +47,15 @@ def main():
                     sid = line.split(' ')[1]
                     forward_section = True
 
-                elif forward_section == True and line.startswith('G'):
-                    fm = re.search(regex_for_fr_s,line).group(2)
-                    fp = re.search(regex_for_fr_s,line).group(1)
+                elif forward_section == True and not line[0].isdigit():
+                    fm = line.split(' ')[-2]
+                    fp = line.split(' ')[-4]
                     forward_section = False
                     reverse_section = True
 
                 elif reverse_section == True:
-                    rm = re.search(regex_for_fr_s,line).group(2)
-                    rp = re.search(regex_for_fr_s,line).group(1)
+                    rm = line.split(' ')[-2]
+                    rp = line.split(' ')[-4]
                     reverse_section = False
 
                 elif line.startswith('Amplimer length:'):
