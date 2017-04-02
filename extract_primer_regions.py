@@ -18,8 +18,8 @@ def main():
     parser = argparse.ArgumentParser(description='Script to analyze multiple outputs from Primer Search so that different primer sets can be compared.')
     parser.add_argument('-input', type=str, required=True, help='Path to the output from primersearch_to_tsv.py.')
     parser.add_argument('-reference', type=str, required=True, help='Reference FASTA sequences provided for the -seqall option of Primer Search.')
-    parser.add_argument('-min_match', type=int, required=True, help='Minimum number of total mismatches.')
-    parser.add_argument('-max_match', type=int, required=True, help='Maximum number of total mismatches.')
+    parser.add_argument('-min_match', type=int, required=True, help='Minimum number of mismatches for either F or R alignment.')
+    parser.add_argument('-max_match', type=int, required=True, help='Maximum number of mismatches for either F or R alignment.')
     parser.add_argument('-min_amp', type=int, required=True, help='Minimum valid amplimer length.')
     parser.add_argument('-max_amp', type=int, required=True, help='Maximum valid amplimer length.')
     parser.add_argument('-f_len', type=int, required=True, help='Length of forward primer.')
@@ -62,10 +62,12 @@ def main():
             amp = int(elements[2].split(' ')[0])
             f_mm = int(elements[3])
             r_mm = int(elements[4])
-            tot_mm = f_mm+r_mm
 
-            if not (args.min_match <= tot_mm <= args.max_match):
-                continue # skip any not within specified range
+            # Pass if either the F or R alignment has mismatches outside the desired range
+            if not (args.min_match <= f_mm <= args.max_match):
+                continue
+            elif not (args.min_match <= r_mm <= args.max_match):
+                continue
             elif not (args.min_amp <= amp <= args.max_amp):
                 continue # skip any outside the desired amplimer range
 
@@ -76,7 +78,7 @@ def main():
             # mismatches with the other having 0).
 
             previous_best = valid_pair_dict[id]
-            curr_val = tot_mm
+            curr_val = f_mm+r_mm
 
             if curr_val < previous_best: # found a new best
                 valid_pair_dict[id] = curr_val
