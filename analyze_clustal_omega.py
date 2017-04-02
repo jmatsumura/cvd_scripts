@@ -19,12 +19,11 @@ def main():
 
     parser = argparse.ArgumentParser(description='Script to analyze multiple outputs from Primer Search so that different primer sets can be compared.')
     parser.add_argument('-input_file', type=str, required=True, help='Path to the output from primersearch_to_tsv.py.')
-    parser.add_argument('-seq_length', type=int, required=True, help='Length of the sequence/primer being aligned.')
     parser.add_argument('-output_file', type=str, required=True, help='Name/location of the output file.')
     args = parser.parse_args()
 
     nt_order = ["A","T","C","G","-"] # guarantee this for the output
-    final_list = [""] * args.seq_length
+    final_list = []
     num_of_entries = 0 # need to keep track of total base possibilities per position
  
     # Parse the input to build a string to represent each base position
@@ -32,10 +31,12 @@ def main():
 
         alignments = co_in.readlines()[3:-1]
         num_of_entries = len(alignments)
+        # Initialize the final list with one element per base being aligned
+        final_list = [""] * len(alignments[0].split()[1].strip())
         
         for entry in alignments: 
             entry = entry.strip()
-            seq = entry.split(' '*6)[1]
+            seq = entry.split()[1]
 
             for idx in range(0,len(seq)):
                 final_list[idx] += seq[idx]
@@ -47,7 +48,7 @@ def main():
 
         for x in range(0,len(final_list)):
 
-            out.write("\t{0}".format(x))
+            out.write("\t{0}".format(x+1)) # don't use python's 0-based indexing for the output
             pos = final_list[x]
 
             for base in nt_order:
