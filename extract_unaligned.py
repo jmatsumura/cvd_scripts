@@ -57,12 +57,26 @@ def main():
     # Now only write out those that didn't make it
     with open(args.output,'w') as out:
         for entry in seq_dict:
-            if seq_dict[entry].id not in aligned:
-                if args.n_or_aa == "aa":
-                    seq_dict[entry].seq = seq_dict[entry].seq.translate()
-                    SeqIO.write(seq_dict[entry],out,"fasta")
+            entry = seq_dict[entry]
+            if entry.id not in aligned:
+                if args.nt_or_aa == "aa":
+                    original_nt_seq = entry.seq
+                    entry.seq = entry.seq.translate()
+
+                    if "*" in entry.seq: # check if the first frame worked
+                        print("Record {0} has an embedded stop codon after translation of frame 1, trying frame 2...".format(entry.id))
+                        entry.seq = original_nt_seq[1:].translate()
+
+                    if "*" in entry.seq: # check if the second frame worked
+                        print("Record {0} has an embedded stop codon after translation in frame 2, trying frame 3...".format(entry.id))
+                        entry.seq = original_nt_seq[2:].translate()
+
+                    if "*" in entry.seq: # check if the third frame worked
+                        print("WARNING: Record {0} has an embedded stop codon after translation in any of the 3 frames. Please verify your original sequence is correct.".format(entry.id))
+
+                    SeqIO.write(entry,out,"fasta")
                 else:
-                    SeqIO.write(seq_dict[entry],out,"fasta")
+                    SeqIO.write(entry,out,"fasta")
 
 
 if __name__ == '__main__':
