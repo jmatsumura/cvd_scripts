@@ -6,7 +6,7 @@
 # allowed.
 #
 # Run the script using a command like this:
-# python3 analyze_sam.py -sam /path/to/bowtie_out.sam -mismatch 3 -output_file /path/to/out.tsv
+# python3 analyze_sam.py -sam /path/to/bowtie_out.sam -mismatch 3 -output /path/to/out.tsv
 #
 # Author: James Matsumura
 
@@ -18,7 +18,7 @@ def main():
     parser = argparse.ArgumentParser(description='Script to isolate all reads and where they aligned to given a BAM file.')
     parser.add_argument('-sam', type=str, required=True, help='Path to a SAM file derived from Bowtie2.')
     parser.add_argument('-mismatch', type=int, required=False, help='Maximum number of mismatches allowed to be considered a valid alignment. Defaults to 0.')
-    parser.add_argument('-output_file', type=str, required=True, help='Location for the output file.')
+    parser.add_argument('-output', type=str, required=True, help='Location for the output file.')
     args = parser.parse_args()
  
     ref_dict = {} # capture all reference sequences

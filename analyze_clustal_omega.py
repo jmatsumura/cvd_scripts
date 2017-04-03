@@ -9,7 +9,7 @@
 # assumes it can fit the file into memory. 
 #
 # Run the script using a command like this:
-# python3 analyze_clustal_omega.py -input_file clustal_omega.out -seq_length 15 -output_file out.matrix
+# python3 analyze_clustal_omega.py -input clustal_omega.out -seq_length 15 -output out.matrix
 #
 # Author: James Matsumura
 
@@ -17,9 +17,9 @@ import argparse
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Script to analyze multiple outputs from Primer Search so that different primer sets can be compared.')
-    parser.add_argument('-input_file', type=str, required=True, help='Path to the output from primersearch_to_tsv.py.')
-    parser.add_argument('-output_file', type=str, required=True, help='Name/location of the output file.')
+    parser = argparse.ArgumentParser(description='Script to analyze the output from Clustal Omega to get counts for how many times a given base is represented at each position.')
+    parser.add_argument('-input', type=str, required=True, help='Path to the output from primersearch_to_tsv.py.')
+    parser.add_argument('-output', type=str, required=True, help='Name/location of the output file.')
     args = parser.parse_args()
 
     nt_order = ["A","T","C","G","-"] # guarantee this for the output

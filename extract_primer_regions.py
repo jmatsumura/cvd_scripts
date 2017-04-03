@@ -7,7 +7,7 @@
 # The output will be a FASTA file with F/R primer alignment sections. 
 #
 # Run the script using a command like this:
-# python3 extract_primer_regions.py -input /path/to/primersearch_to_tsv.out.tsv -buffer 5 -min_match 0 -max_match 3 -min_amp 50 -max_amp 3000 -reference /path/to/ref.fsa -output_fsa /path/to/out_fsa
+# python3 extract_primer_regions.py -input /path/to/primersearch_to_tsv.out.tsv -buffer 5 -min_match 0 -max_match 3 -min_amp 50 -f_len 20 -r_len 20 -max_amp 3000 -reference /path/to/ref.fsa -output_dir /path/to/out_fsa
 #
 # Author: James Matsumura
 
@@ -15,7 +15,7 @@ import argparse
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Script to analyze multiple outputs from Primer Search so that different primer sets can be compared.')
+    parser = argparse.ArgumentParser(description='Script to extract regions from FASTA files where primers are aligning..')
     parser.add_argument('-input', type=str, required=True, help='Path to the output from primersearch_to_tsv.py.')
     parser.add_argument('-reference', type=str, required=True, help='Reference FASTA sequences provided for the -seqall option of Primer Search.')
     parser.add_argument('-min_match', type=int, required=True, help='Minimum number of mismatches for either F or R alignment.')
