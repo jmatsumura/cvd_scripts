@@ -18,41 +18,72 @@ def main():
     parser.add_argument('-sample_maps', type=str, required=True, help='Comma separated list of sample data.')
     args = parser.parse_args()
 
-    possible_positions = set() # store each valid possible AA polymorphic position
-
-    samples = args.sample_maps.split(',')
-
-    # First do a quick pull from the column names of the sample data files and
-    # find the valid PolyAA positions.
-    for sample in samples:
-        sample_df = pandas.read_csv(sample)
-        for col in list(sample_df): # extract the column names
-            if col.startswith("AA"):
-                possible_positions.add(col[2:])
+    # row names are peptides, col names are sample IDs by their Subj+Timepoint
+    rownames,colnames = ([] for i in range(2))
 
     peptide_df = pandas.read_csv(args.peptide_map) # open up the peptide file
+    peptide_dict = {}
 
-    # Now build a dictionary which contains a dictionary. This is so we can map
-    # a peptide ID to a list of its possible polymorphisms.
-    peptide_dict = {} # will contain the peptide name, a list of all its polymorphic 
-                      # AAs+positions, and the length of the peptide.
     for index,row in peptide_df.iterrows():
 
-        # Only keep info on those peptides with polymorphic AAs
-        if row["Polymorphic AA only"] != "":
+        peptide_dict[row["Name"]] = {
+            'name': row["Name"],
+            'seq': row["Sequence"],
+            'seq_s': row["StartAA"],
+            'seq_e': row["EndAA"]
+        }
 
-            start_end = "{0}:{1}".format(row["StartAA"],row["EndAA"])
+        rownames.append(row["Name"]) # maintain dict order via this
 
-            peptide_dict[start_end] = {
-                'name': row["Name"],
-                'length': row["#polyAA"],
-                'poly_aas': extract_polymorphic_aas(row["StartAA"],row["EndAA"],row["Polly AA Start"],row["Polly AA End"],row["Sequence"],row["Polymorphic AA only"])
-            }
+    samples = args.sample_maps.split(',')
+    sample_dict = {}
+    for sample in samples:
+        sample_df = pandas.read_csv(sample)
+        # want these ordered so that we can build the output in order
+        poly_aa_pos = [] 
 
-# Function which takes in a range for the peptide sequence, range for the 
-# polymorphic AAs, the peptide sequence, the polypeptides, and a set for
-# possible positions for these poly AAs to reside.
-def extract_polymorphic_aas(pep_start,pep_stop,aa_start,aa_stop,aas,poly_aas):
+        for col in list(sample_df):
+            if col.startswith("AA"):
+                # this tells us which polymorphic AA positions we will check 
+                # against each peptide fragment
+                poly_aa_pos.append(col.split('AA')[1])
+
+        # each sample will have a dif set of fragments we want to check, note which
+        relevant_peptides = set() 
+        for fragment in rownames:
+            start = int(peptide_dict[fragment]['seq_s'])
+            end = int(peptide_dict[fragment]['seq_e'])
+
+            for pos in poly_aa_pos:
+                if start <= int(pos) <= end:
+                    relevant_peptides.add(fragment)
+                    break
+
+        # Build a list where each element will be a list that represents the 
+        # sample v peptideS alignment variables. 
+        final_matrix = [] 
+
+        for index,row in sample_df.iterrows():
+
+            curr_sample = []
+
+            unique_id = "{0}.{1}".format(row["Subj"],row["Timepoint"])
+            colnames.append(unique_id)
+
+            for fragment in rownames:
+                # If this fragment has no poly AAs, then give it a perfect score
+                if fragment not in relevant_peptides: 
+                    curr_sample.append("1.000")
+
+                # Time to inspect whether or not the polymorphisms are present
+                else:
+                    relevant_positions = []
+                    for pos in poly_aa_pos:
+                        if start <= int(pos) <= end:
+                            relevant_positions.append(pos)
+                        elif end < int(pos):
+                            break
+
 
 
 if __name__ == '__main__':
