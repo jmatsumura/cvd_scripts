@@ -1,28 +1,25 @@
 
 
-# This script will parse through CSV files to capture how many polymorphisms,
-# per individual, were found in each peptide. This will be presented as either
-# an absolute count of how many poly AAs are present or a ratio for how many
-# AAs matched to the reference. 
+# This script will parse through CSV files to capture the frequency of each 
+# unique polymorphism found in a given peptide fragment across samples.
 #
 # Run the script using a command like this:
-# python3 count_polymorphisms.py -peptide_map peptide_map.csv -sample_map sample_map.csv -rel_or_abs rel -outfile outfile.csv
+# python3 calc_poly_freq.py -peptide_map peptide_map.csv -sample_maps sample_map.csv -outfile my_out.tsv
 #
 # Author: James Matsumura
 
-import pandas,argparse
+import pandas,argparse,collections
 
 def main():
 
     parser = argparse.ArgumentParser(description='Script to count polymorphisms given a peptide map and sample data.')
     parser.add_argument('-peptide_map', type=str, required=True, help='Path to peptide file.')
-    parser.add_argument('-sample_maps', type=str, required=True, help='Path to sample file.')
-    parser.add_argument('-rel_or_abs', type=str, required=True, help='Whether to output a matrix of relative match % or absolute counts for how many polymorphisms in that peptide.')
+    parser.add_argument('-sample_maps', type=str, required=True, help='Comma separated list of sample data.')
     parser.add_argument('-outfile', type=str, required=True, help='Name of the output file.')
     args = parser.parse_args()
 
     # row names are peptides, col names are sample IDs by their Subj+Timepoint
-    rownames,colnames = ([] for i in range(2))
+    rownames = []
 
     peptide_df = pandas.read_csv(args.peptide_map) # open up the peptide file
     peptide_dict = {}
@@ -33,7 +30,8 @@ def main():
             'name': row["Name"],
             'seq': row["Sequence"],
             'seq_s': row["StartAA"],
-            'seq_e': row["EndAA"]
+            'seq_e': row["EndAA"],
+            'original_poly': set()
         }
 
         rownames.append(row["Name"]) # maintain dict order via this
@@ -62,27 +60,15 @@ def main():
                     relevant_peptides.add(fragment)
                     break
 
-        # Build a list where each element will be a list that represents the 
-        # sample v peptideS alignment variables. 
-        final_matrix = [] 
-
         for index,row in sample_df.iterrows():
-
-            unique_id = "{0}.{1}".format(row["Subj"],row["Timepoint"])
-            colnames.append(unique_id)
 
             curr_sample = [] # a list of all the values found for this sample
 
             for fragment in rownames:
-                # If this fragment has no poly AAs, then give it a perfect score
-                if fragment not in relevant_peptides: 
-                    if args.rel_or_abs == 'rel':
-                        curr_sample.append("1.00000")
-                    elif args.rel_or_abs == 'abs':
-                        curr_sample.append("0")
+                
+                # Only need to perform operations for those 
+                if fragment in relevant_peptides: 
 
-                # Time to inspect whether or not the polymorphisms are present
-                else:
                     relevant_positions = []
                     num_of_poly = 0
                     seq = peptide_dict[fragment]['seq']
@@ -102,27 +88,45 @@ def main():
 
                             # need to offset based on where the fragment starts
                             adj_pos = pos - start
+                            peptide_dict[fragment]['original_poly'].add("{0}:{1}".format(seq[adj_pos],pos))
 
                             if seq[adj_pos] != row[pos_with_aa]:
-                                num_of_poly += 1
+                                
+                                if pos not in peptide_dict[fragment]:
+                                    peptide_dict[fragment][pos] = ""
 
-                    if args.rel_or_abs == 'rel':
-                        seq_len = int(len(seq))
-                        num_match = seq_len - num_of_poly
-                        curr_sample.append("{0:.5f}".format(num_match/seq_len))
+                                peptide_dict[fragment][pos] += row[pos_with_aa]
 
-                    elif args.rel_or_abs == 'abs':
-                        curr_sample.append("{0}".format(num_of_poly))
+    
+    seen = set()
 
-            # now we have all the data for this sample column
-            final_matrix.append(curr_sample) 
+    with open(args.outfile,'w') as out:
+        for fragment in rownames:
+            for key in peptide_dict[fragment]:
+                if isinstance(key, int):
 
-        rows = pandas.Index(rownames,name="rows")
-        cols = pandas.Index(colnames,name="columns")
-        df = pandas.DataFrame(data=final_matrix,index=cols,columns=rows)
-        df = df.transpose()
-        df.to_csv(args.outfile,sep='\t')
+                    original_aa = ""
 
+                    # find out the original base using the set built in original_poly
+                    for original in peptide_dict[fragment]['original_poly']:
+                        ele = original.split(':')
+                        if key == int(ele[1]):
+                            original_aa = ele[0]
+
+                    if key not in seen:
+                        out.write("{0}\t{1}\t{2}\n".format(original_aa,key,frequency_check(peptide_dict[fragment][key])))
+                        seen.add(key)
+
+
+# Returns a string with frequencies for how many times each amino acid appears
+# in a string
+def frequency_check(string):
+    freqs = collections.Counter(string).most_common()
+    total = sum(collections.Counter(string).values())
+    final_list = []
+    for counts in freqs:
+        final_list.append("{0}:{1:.3f}".format(counts[0],counts[1]/total))
+    return "\t".join(final_list)
 
 if __name__ == '__main__':
     main()
