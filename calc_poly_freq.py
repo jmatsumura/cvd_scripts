@@ -16,6 +16,7 @@ def main():
     parser.add_argument('-peptide_map', type=str, required=True, help='Path to peptide file.')
     parser.add_argument('-sample_maps', type=str, required=True, help='Comma separated list of sample data.')
     parser.add_argument('-outfile', type=str, required=True, help='Name of the output file.')
+    parser.add_argument('-nonreference', type=str, required=False, help='Add "yes" to this argument if there are variants to the same region present and you want to display each peptide fragment for poly AAs distinctly.')
     args = parser.parse_args()
 
     # row names are peptides, col names are sample IDs by their Subj+Timepoint
@@ -89,33 +90,37 @@ def main():
                             # need to offset based on where the fragment starts
                             adj_pos = pos - start
                             peptide_dict[fragment]['original_poly'].add("{0}:{1}".format(seq[adj_pos],pos))
+                            
+                            if pos not in peptide_dict[fragment]:
+                                peptide_dict[fragment][pos] = ""
 
-                            if seq[adj_pos] != row[pos_with_aa]:
-                                
-                                if pos not in peptide_dict[fragment]:
-                                    peptide_dict[fragment][pos] = ""
+                            peptide_dict[fragment][pos] += row[pos_with_aa]
 
-                                peptide_dict[fragment][pos] += row[pos_with_aa]
-
+    # it's a bit tricky since only some of the keys made in the peptide_dict
+    # are the poly AA positions. Thus, going to build a final dictionary that
+    # can be more easily sorted and written out using the positions as keys. 
+    final_dict = {} 
     
-    seen = set()
+    for fragment in rownames:
+        for key in peptide_dict[fragment]:
+            if isinstance(key, int):
+
+                original_aa = ""
+
+                # find out the original base using the set built in original_poly
+                for original in peptide_dict[fragment]['original_poly']:
+                    ele = original.split(':')
+                    if key == int(ele[1]):
+                        original_aa = ele[0]
+
+                if key not in final_dict:
+                    final_dict[key] = {'original_aa':original_aa,'freqs':frequency_check(peptide_dict[fragment][key])}
 
     with open(args.outfile,'w') as out:
-        for fragment in rownames:
-            for key in peptide_dict[fragment]:
-                if isinstance(key, int):
+        ordered = collections.OrderedDict(sorted(final_dict.items()))
 
-                    original_aa = ""
-
-                    # find out the original base using the set built in original_poly
-                    for original in peptide_dict[fragment]['original_poly']:
-                        ele = original.split(':')
-                        if key == int(ele[1]):
-                            original_aa = ele[0]
-
-                    if key not in seen:
-                        out.write("{0}\t{1}\t{2}\n".format(original_aa,key,frequency_check(peptide_dict[fragment][key])))
-                        seen.add(key)
+        for key in ordered:
+            out.write("{0}\t{1}\t{2}\n".format(ordered[key]['original_aa'],key,ordered[key]['freqs']))
 
 
 # Returns a string with frequencies for how many times each amino acid appears
