@@ -66,8 +66,7 @@ def main():
             curr_sample = [] # a list of all the values found for this sample
 
             for fragment in rownames:
-                
-                # Only need to perform operations for those 
+
                 if fragment in relevant_peptides: 
 
                     relevant_positions = []
@@ -113,14 +112,35 @@ def main():
                     if key == int(ele[1]):
                         original_aa = ele[0]
 
-                if key not in final_dict:
+                # if it's not a reference sequence split into multiple fragments 
+                # and we have variant seqs, need the final_dict to be composed of
+                # poly AAs per distinct peptide. 
+                if args.nonreference:
+                    if fragment not in final_dict:
+                        final_dict[fragment] = {}
+
+                    # know that each key will be unique to each fragment
+                    final_dict[fragment][key] = {'original_aa':original_aa,'freqs':frequency_check(peptide_dict[fragment][key])}
+
+                
+                elif key not in final_dict:
                     final_dict[key] = {'original_aa':original_aa,'freqs':frequency_check(peptide_dict[fragment][key])}
 
     with open(args.outfile,'w') as out:
-        ordered = collections.OrderedDict(sorted(final_dict.items()))
 
-        for key in ordered:
-            out.write("{0}\t{1}\t{2}\n".format(ordered[key]['original_aa'],key,ordered[key]['freqs']))
+        if args.nonreference:
+            for fragment in rownames:
+                if fragment in relevant_peptides:
+                    ordered = collections.OrderedDict(sorted(final_dict[fragment].items()))
+
+                    for key in ordered:
+                        out.write("{0}\t{1}\t{2}\t{3}\n".format(fragment,ordered[key]['original_aa'],key,ordered[key]['freqs']))
+
+        else:
+            ordered = collections.OrderedDict(sorted(final_dict.items()))
+
+            for key in ordered:
+                out.write("{0}\t{1}\t{2}\n".format(ordered[key]['original_aa'],key,ordered[key]['freqs']))
 
 
 # Returns a string with frequencies for how many times each amino acid appears
