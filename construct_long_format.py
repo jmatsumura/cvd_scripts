@@ -3,7 +3,10 @@
 # 
 #
 # Run the script using a command like this:
-# 
+# python3 construct_long_format.py -peptide_map reformatting_ama1/peptide_map.tsv -sample_map reformatting_ama1/sample_map.tsv 
+# -raw_file reformatting_ama1/raw.tsv -outfile ama1_high_concentration_only_long_format.tsv 
+# -rel_matrices reformatting_ama1/AT_Mal056_rel.tsv,reformatting_ama1/AT_1999_rel.tsv,reformatting_ama1/Mal056_rel.tsv,reformatting_ama1/1999_rel.tsv 
+# -abs_matrices reformatting_ama1/AT_Mal056_abs.tsv,reformatting_ama1/AT_1999_abs.tsv,reformatting_ama1/Mal056_abs.tsv,reformatting_ama1/1999_abs.tsv
 #
 # Author: James Matsumura
 
@@ -17,6 +20,7 @@ def main():
     parser.add_argument('-raw_file', type=str, required=True, help='Path to microarray results.')
     parser.add_argument('-abs_matrices', type=str, required=True, help='Name of absolute value matrices.')
     parser.add_argument('-rel_matrices', type=str, required=True, help='Name of relative ratio value matrices.')
+    parser.add_argument('-high_only', type=str, required=False, help='Whether to omit the 0.003 concentrations.')
     parser.add_argument('-outfile', type=str, required=True, help='Name of the output file.')
     args = parser.parse_args()
 
@@ -79,8 +83,13 @@ def main():
             pep_map_back[oh_oh_three] = row["peptide_id"]
 
     slides = set() # differentiate between those with G25 and those without
+    g25_map = {}
     for col in list(raw_df):
-        if col.startswith("Slide") and "G25" not in col:
+        if col.startswith("Slide") and "G25" in col:
+            without_g25 = col.replace("G25_","")
+            g25_map[without_g25] = col 
+            slides.add(col)
+        elif col.startswith("Slide"):
             slides.add(col)
 
     for index,row in raw_df.iterrows():
@@ -104,12 +113,19 @@ def main():
 
                 for x in peptide_dict[pep]['row']:
                     dilution = x['Dilution']
+                    if dilution != dilution:
+                        dilution = ""
+                    if args.high_only:
+                        if dilution == "0.003":
+                            continue
                     slide = sample_dict[sam]['sample_pad']
                     seroreactivity = ""
-                    if slide in slides:
+                    if slide in g25_map:
+                        seroreactivity = x[g25_map[slide]]
+                    else:
                         seroreactivity = x[slide]
                     
-                    out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\t{6}\n".format(pep_idx,sam_idx,stu_idx,dilution,seroreactivity,rel,abs))
+                    out.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5:.5f}\t{6}\n".format(pep_idx,sam_idx,stu_idx,dilution,seroreactivity,rel,abs))
     
 
 
