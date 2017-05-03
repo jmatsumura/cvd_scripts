@@ -24,7 +24,7 @@ def main():
     parser.add_argument('-outfile', type=str, required=True, help='Name of the output file.')
     args = parser.parse_args()
 
-    peptide_order,sample_order = ([] for i in range(2))
+    peptide_order,slide_order = ([] for i in range(2))
     peptide_dict,sample_dict = ({} for i in range(2))
     pep_map_back = {}
 
@@ -63,8 +63,8 @@ def main():
 
     for index,row in sample_df.iterrows():
         if row["sample_id"] in sample_names:
-            sample_order.append(row["sample_id"])
-            sample_dict[row["sample_id"]] = {'sample_idx':row["sample_index"],'sample_pad':row["slide_pad"],'study_idx':row["study_index"]}
+            slide_order.append(row["slide_pad"])
+            sample_dict[row["slide_pad"]] = {'sample_id':row["sample_id"],'sample_idx':row["sample_index"],'sample_pad':row["slide_pad"],'study_idx':row["study_index"]}
 
     peptides = set()
     for index,row in peptide_df.iterrows():
@@ -103,13 +103,15 @@ def main():
         out.write("peptide_idx\tsample_idx\tstudy_idx\tdilution\tseroreactivity\trel_match\tpoly_aa_count\n")
 
         for pep in peptide_order:
-            for sam in sample_order:
+            for sam in slide_order:
+
+                sample_id = sample_dict[sam]["sample_id"]
 
                 pep_idx = peptide_dict[pep]['peptide_idx']
                 sam_idx = sample_dict[sam]['sample_idx']
                 stu_idx = sample_dict[sam]['study_idx']
-                abs = abs_values["{0}:{1}".format(pep,sam)]
-                rel = rel_values["{0}:{1}".format(pep,sam)]
+                abs = abs_values["{0}:{1}".format(pep,sample_id)]
+                rel = rel_values["{0}:{1}".format(pep,sample_id)]
 
                 for x in peptide_dict[pep]['row']:
                     dilution = x['Dilution']
