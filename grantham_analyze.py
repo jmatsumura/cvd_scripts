@@ -46,7 +46,7 @@ def main():
     args = parser.parse_args()
 
     # Establish the values from Table 1 of Grantham's work: https://www.ncbi.nlm.nih.gov/pubmed/4843792
-    gv_vals = {
+    gd_vals = {
         'A': AminoAcid(0.0,8.1,31.0),
         'I': AminoAcid(0.0,5.2,111.0),
         'L': AminoAcid(0.0,4.9,111.0),
@@ -109,24 +109,25 @@ def main():
                 cmin,pmin,vmin = (1000.0 for i in range(3))
                 cmax,pmax,vmax = (0.0 for i in range(3))
 
+                # Find the most extreme value for every Grantham metric
                 for x in unique_sets[j]:
 
-                    if gv_vals[x].c < cmin:
-                        cmin = gv_vals[x].c
-                    if gv_vals[x].c > cmax:
-                        cmax = gv_vals[x].c
+                    if gd_vals[x].c < cmin:
+                        cmin = gd_vals[x].c
+                    if gd_vals[x].c > cmax:
+                        cmax = gd_vals[x].c
 
-                    if gv_vals[x].p < pmin:
-                        pmin = gv_vals[x].p
-                    if gv_vals[x].p > pmax:
-                        pmax = gv_vals[x].p
+                    if gd_vals[x].p < pmin:
+                        pmin = gd_vals[x].p
+                    if gd_vals[x].p > pmax:
+                        pmax = gd_vals[x].p
 
-                    if gv_vals[x].v < vmin:
-                        vmin = gv_vals[x].v
-                    if gv_vals[x].v > vmax:
-                        vmax = gv_vals[x].v
+                    if gd_vals[x].v < vmin:
+                        vmin = gd_vals[x].v
+                    if gd_vals[x].v > vmax:
+                        vmax = gd_vals[x].v
 
-                results.append(single_gv(cmax,cmin,pmax,pmin,vmax,vmin))
+                results.append(single_gd(cmax,cmin,pmax,pmin,vmax,vmin))
 
         with open(args.outfile,'w') as out:
             out.write("\t".join(str(x) for x in range(args.beginning,args.beginning+len(results))))
@@ -152,9 +153,9 @@ def main():
                 pep2_seq = peptides[key_lookup[pep2]]
 
                 if args.single_pairwise: # only 
-                    subresult.append(pairwise_gv(gv_vals,pep1_seq,pep2_seq,True))
+                    subresult.append(pairwise_gd(gd_vals,pep1_seq,pep2_seq,True))
                 else:
-                    subresult.append(pairwise_gv(gv_vals,pep1_seq,pep2_seq,False))
+                    subresult.append(pairwise_gd(gd_vals,pep1_seq,pep2_seq,False))
 
             results.append(subresult)
 
@@ -186,7 +187,7 @@ class AminoAcid(object):
 # Takes in the Grantham data in addition to the two seqs to compare, returns
 # either the largest GD found throughout if largest_only == True or all GD
 # scores summed and divided by the length of the sequence.
-def pairwise_gv(gv_vals,seq1,seq2,largest_only):
+def pairwise_gd(g_vals,seq1,seq2,largest_only):
 
     overall_gd = 0.0 # store all GDs found
     max_gd = 0.0 # since we have to iterate through already, just keep track manually
@@ -195,9 +196,9 @@ def pairwise_gv(gv_vals,seq1,seq2,largest_only):
         if aa == seq2[i]:
             pass
         else:
-            cur_gd = float(single_gv(gv_vals[aa].c,gv_vals[seq2[i]].c,gv_vals[aa].p,gv_vals[seq2[i]].p,gv_vals[aa].v,gv_vals[seq2[i]].v))
+            cur_gd = float(single_gd(gd_vals[aa].c,g_vals[seq2[i]].c,gd_vals[aa].p,g_vals[seq2[i]].p,gd_vals[aa].v,gd_vals[seq2[i]].v))
             if cur_gd > max_gd:
-                max_gd = float(cur_gd)
+                max_gd = cur_gd
             
             overall_gd += cur_gd
 
@@ -207,7 +208,7 @@ def pairwise_gv(gv_vals,seq1,seq2,largest_only):
         return "{0:.3f}".format(overall_gd/len(seq1))
 
 # Takes in two sets of (c|p|v) values and calculates the Grantham difference
-def single_gv(c1,c2,p1,p2,v1,v2):
+def single_gd(c1,c2,p1,p2,v1,v2):
 
     c = (1.833*(c1-c2))**2
     p = (0.1018*(p1-p2))**2
