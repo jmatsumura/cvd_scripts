@@ -13,10 +13,6 @@
 # polymorphisms from a more dispersed set of polymorphisms. 
 # Further reading: https://www.ncbi.nlm.nih.gov/pubmed/4843792 
 #
-# For formatting GD/pairwise outputs, one can use forceSymmetric in R if 
-# all values need to be present
-# Further reading: https://cran.r-project.org/web/packages/Matrix/Matrix.pdf
-#
 # Grantham Variation (GV) is calculated when looking at each position across 
 # all sequences and isolating the mins/maxs for c/p/v values.
 # Futher reading: https://www.ncbi.nlm.nih.gov/pubmed/16014699
@@ -161,13 +157,19 @@ def main():
 
             cur_base_sample_pos += 1
 
+        # mirror the values on the other side of the diagonal
+        mirrored_results = []
+
+        for i in range(1,len(results)):
+            mirrored_results.append([x[i-j] for j,x in enumerate(results[0:i])])
+
         with open(args.outfile,'w') as out:
             out.write("\t{}".format("\t".join(key_lookup)))
 
             for i,res in enumerate(results):
                 filler = "\t"
                 if i != 0:
-                    filler = "\t{}\t".format("\t".join(["NA"]*(len(results[0])-len(results[i]))))
+                    filler = "\t{}\t".format("\t".join(mirrored_results[i-1]))
                 out.write("\n{}{}{}".format(key_lookup[i],filler,"\t".join(res)))
             
 
@@ -196,7 +198,7 @@ def pairwise_gd(g_vals,seq1,seq2,largest_only):
         if aa == seq2[i]:
             pass
         else:
-            cur_gd = float(single_gd(gd_vals[aa].c,g_vals[seq2[i]].c,gd_vals[aa].p,g_vals[seq2[i]].p,gd_vals[aa].v,gd_vals[seq2[i]].v))
+            cur_gd = float(single_gd(g_vals[aa].c,g_vals[seq2[i]].c,g_vals[aa].p,g_vals[seq2[i]].p,g_vals[aa].v,g_vals[seq2[i]].v))
             if cur_gd > max_gd:
                 max_gd = cur_gd
             
